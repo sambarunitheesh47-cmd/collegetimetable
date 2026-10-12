@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#f3f7ff">
+	<title>Smart College Timetable Generator</title>
+	<style>
+		:root {
+			--blue: #315fe8;
+			--blue-dark: #244bc1;
+			--navy: #182b4a;
+			--muted: #71809a;
+			--line: #e2e9f4;
+			--canvas: #f3f7ff;
+			--white: #fff;
+			--theory-bg: #edf3ff;
+			--theory-ink: #284fae;
+			--lab-bg: #e3f7ee;
+			--lab-ink: #176847;
+			--break-bg: #fff7e8;
+			--break-ink: #9b681b;
+			--shadow: 0 14px 40px rgba(37, 66, 120, .08);
+			font-family: "Segoe UI", Arial, sans-serif;
+			color-scheme: light;
+		}
+		* { box-sizing: border-box; }
+		body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--navy); }
+		button, input, select { font: inherit; }
+		button { cursor: pointer; }
+		[hidden] { display: none !important; }
+		.app { max-width: 1480px; margin: 0 auto; padding: 0 34px 48px; }
+		.topbar { height: 70px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+		.brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; letter-spacing: -.025em; }
+		.brand-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--blue); color: white; font-size: 19px; }
+		.top-note { color: var(--muted); font-size: 12px; }
+		.intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; padding: 29px 0 23px; }
+		.eyebrow { color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+		h1 { margin: 7px 0 6px; font-size: clamp(26px, 3.1vw, 36px); letter-spacing: -.045em; line-height: 1.12; }
+		.intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+		.privacy { flex: 0 0 auto; padding-bottom: 4px; color: #21835f; font-size: 11px; font-weight: 700; }
+		.workspace { display: grid; grid-template-columns: minmax(350px, .82fr) minmax(0, 1.55fr); align-items: start; gap: 20px; }
+		.panel-column, .timetable-column { min-width: 0; }
+		.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; }
+		.section-heading h2 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+		.section-step { color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+		.panel { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--white); box-shadow: var(--shadow); }
+		.form-content { padding: 19px; }
+		.form-section + .form-section { margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--line); }
+		.form-section h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 12px; font-weight: 800; }
+		.section-number { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; background: #edf3ff; color: var(--blue); font-size: 10px; }
+		.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 10px; }
+		.field { min-width: 0; }
+		.field.full { grid-column: 1 / -1; }
+		label { display: block; margin-bottom: 5px; color: #43536d; font-size: 10px; font-weight: 750; }
+		.optional { color: #8a97aa; font-weight: 500; }
+		input, select { width: 100%; height: 36px; padding: 0 9px; border: 1px solid #dbe4f0; border-radius: 6px; outline: none; background: #fbfcfe; color: var(--navy); font-size: 11px; }
+		input:focus, select:focus { border-color: #7897f0; background: white; box-shadow: 0 0 0 3px rgba(49, 95, 232, .12); }
+		input::placeholder { color: #a0acbd; }
+		.helper { margin: 5px 0 0; color: #8390a3; font-size: 10px; line-height: 1.45; }
+		.subject-list { display: grid; gap: 10px; }
+		.subject-card { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fcfdff; }
+		.subject-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: #5a6d89; font-size: 10px; font-weight: 800; }
+		.subject-card-head label { margin: 0; }
+		.remove-subject { border: 0; padding: 0 2px; background: transparent; color: #9a6470; font-size: 17px; line-height: 1; }
+		.remove-subject:hover { color: #bf344a; }
+		.subject-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+		.subject-fields .field-wide { grid-column: 1 / -1; }
+		.days { display: flex; flex-wrap: wrap; gap: 6px; }
+		.day-choice { position: relative; }
+		.day-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+		.day-choice span { min-width: 42px; height: 29px; display: grid; place-items: center; padding: 0 7px; border: 1px solid #dbe4f0; border-radius: 6px; background: #fbfcfe; color: #66758e; font-size: 10px; font-weight: 700; cursor: pointer; }
+		.day-choice input:checked + span { border-color: #a7bcfa; background: #edf3ff; color: #2b55c3; }
+		.day-choice input:focus-visible + span { outline: 3px solid rgba(49, 95, 232, .28); outline-offset: 2px; }
+		.add-subject { margin-top: 9px; border: 0; padding: 0; background: transparent; color: var(--blue); font-size: 10px; font-weight: 800; }
+		.add-subject:hover { text-decoration: underline; }
+		.actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 18px; border-top: 1px solid var(--line); background: #fafbfd; }
+		.button { min-height: 37px; border: 1px solid transparent; border-radius: 6px; padding: 0 11px; font-size: 10px; font-weight: 800; transition: background .15s, border-color .15s, transform .15s; }
+		.button:active { transform: translateY(1px); }
+		.button-primary { flex: 1; background: var(--blue); color: white; }
+		.button-primary:hover { background: var(--blue-dark); }
+		.button-secondary { border-color: var(--line); background: white; color: #495a74; }
+		.button-secondary:hover { border-color: #b5c4da; background: #f8faff; }
+		.button-save { background: #e6f7ef; color: #1a704b; }
+		.button-save:hover { background: #d5f0e3; }
+		.button-csv { background: #edf3ff; color: #2b55c3; }
+		.button-csv:hover { background: #dfe9ff; }
+		.error-box { display: none; margin: 0 0 10px; padding: 10px 12px; border: 1px solid #f1c5c8; border-radius: 8px; background: #fff7f7; color: #a5313c; font-size: 11px; line-height: 1.5; }
+		.error-box.show { display: block; }
+		.timetable-heading { min-height: 38px; }
+		.status-label { display: flex; align-items: center; gap: 6px; color: #21835f; font-size: 9px; font-weight: 800; letter-spacing: .07em; }
+		.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #37b27e; box-shadow: 0 0 0 3px #e4f7ee; }
+		.table-card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: var(--shadow); }
+		.table-titlebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+		.table-titlebar h3 { overflow: hidden; margin: 0 0 4px; font-size: 16px; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
+		.table-titlebar p { margin: 0; color: var(--muted); font-size: 10px; }
+		.year-badge { flex: 0 0 auto; padding: 7px 9px; border-radius: 6px; background: #edf3ff; color: #3157bd; font-size: 9px; font-weight: 800; }
+		.table-scroll { overflow: auto; }
+		table { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; text-align: left; }
+		thead th { position: sticky; z-index: 1; top: 0; padding: 10px 7px; border-bottom: 1px solid var(--line); background: #f8faff; color: #677792; font-size: 9px; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+		thead th:first-child, tbody th { width: 105px; padding-left: 12px; }
+		tbody th { border-right: 1px solid #edf1f6; border-bottom: 1px solid #edf1f6; color: #52637e; font-size: 9px; font-weight: 750; text-align: left; vertical-align: top; }
+		tbody th small { display: block; margin-top: 4px; color: #8491a4; font-size: 8px; font-weight: 600; white-space: nowrap; }
+		tbody td { height: 54px; padding: 5px; border-right: 1px solid #edf1f6; border-bottom: 1px solid #edf1f6; vertical-align: middle; }
+		tbody td:last-child { border-right: 0; }
+		tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+		.class-cell { width: 100%; min-height: 42px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; border: 1px solid transparent; border-radius: 6px; padding: 5px 6px; text-align: left; }
+		.class-cell:hover { filter: brightness(.97); border-color: rgba(54, 84, 145, .2); }
+		.class-cell.theory { background: var(--theory-bg); color: var(--theory-ink); }
+		.class-cell.lab { min-height: 56px; background: var(--lab-bg); color: var(--lab-ink); }
+		.cell-name { overflow: hidden; width: 100%; font-size: 9px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+		.cell-meta { overflow: hidden; width: 100%; color: #7182a0; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+		.lab .cell-meta { color: #58846f; }
+		.cell-time { color: #52627a; font-size: 8px; font-weight: 700; }
+		.class-cell.free { background: #fafbfd; color: #8794a7; }
+		.class-cell.free .cell-meta { color: #9aa5b4; }
+		.class-cell.break-cell { min-height: 35px; align-items: center; background: var(--break-bg); color: var(--break-ink); text-align: center; }
+		.class-cell.break-cell .cell-name, .class-cell.break-cell .cell-meta { text-align: center; }
+		.no-classes { color: #929eb0; font-size: 9px; text-align: center; }
+		.empty-state { padding: 48px 20px; text-align: center; }
+		.empty-icon { width: 46px; height: 46px; display: grid; place-items: center; margin: 0 auto 11px; border-radius: 14px; background: #edf3ff; color: var(--blue); font-size: 21px; }
+		.empty-state h3 { margin: 0 0 6px; font-size: 14px; }
+		.empty-state p { max-width: 355px; margin: 0 auto; color: var(--muted); font-size: 11px; line-height: 1.6; }
+		.legend { display: flex; flex-wrap: wrap; gap: 15px; padding: 10px 15px; border-top: 1px solid var(--line); color: #6e7c91; font-size: 9px; }
+		.legend span { display: inline-flex; align-items: center; gap: 6px; }
+		.legend i { width: 10px; height: 10px; border-radius: 3px; }
+		.legend .theory-key { background: var(--theory-bg); }
+		.legend .lab-key { background: var(--lab-bg); }
+		.legend .break-key { background: var(--break-bg); }
+		.table-foot { padding: 9px 15px; border-top: 1px solid var(--line); color: #8290a4; font-size: 9px; }
+		dialog { width: min(430px, calc(100% - 28px)); border: 1px solid var(--line); border-radius: 12px; padding: 0; color: var(--navy); box-shadow: 0 24px 80px rgba(20, 39, 73, .28); }
+		dialog::backdrop { background: rgba(19, 34, 59, .45); }
+		.dialog-content { padding: 20px; }
+		.dialog-content h2 { margin: 0 0 5px; font-size: 17px; }
+		.dialog-hint { margin: 0 0 15px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+		.dialog-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+		.dialog-field { min-width: 0; }
+		.dialog-field.wide { grid-column: 1 / -1; }
+		.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+		.toast { position: fixed; z-index: 5; left: 50%; bottom: 20px; max-width: calc(100vw - 32px); transform: translate(-50%, 12px); padding: 10px 15px; border-radius: 7px; background: #1c3153; color: white; font-size: 11px; font-weight: 700; opacity: 0; pointer-events: none; transition: .2s; }
+		.toast.show { transform: translate(-50%, 0); opacity: 1; }
+		:focus-visible { outline: 3px solid rgba(49, 95, 232, .27); outline-offset: 2px; }
+		@media (max-width: 1030px) {
+			.app { padding-right: 21px; padding-left: 21px; }
+			.workspace { grid-template-columns: minmax(325px, .9fr) minmax(0, 1.1fr); gap: 14px; }
+			.form-content { padding: 15px; }
+			.actions { padding: 11px 14px; }
+		}
+		@media (max-width: 760px) {
+			.app { padding: 0 14px 30px; }
+			.topbar { height: 60px; }
+			.top-note { font-size: 10px; }
+			.intro { display: block; padding: 23px 0 18px; }
+			.intro p { font-size: 12px; }
+			.privacy { margin-top: 10px; }
+			.workspace { display: flex; flex-direction: column; gap: 23px; }
+			.panel-column, .timetable-column { width: 100%; }
+		}
+		@media (max-width: 420px) {
+			.app { padding-right: 10px; padding-left: 10px; }
+			.top-note { max-width: 120px; text-align: right; }
+			.subject-fields { gap: 7px; }
+			.actions { gap: 6px; padding-right: 10px; padding-left: 10px; }
+			.actions .button { padding: 0 8px; font-size: 9px; }
+		}
+		@media print {
+			@page { size: landscape; margin: 9mm; }
+			body { background: white; }
+			.topbar, .intro, .panel-column, .timetable-heading, .legend, .table-foot, .toast { display: none !important; }
+			.app { max-width: none; padding: 0; }
+			.workspace { display: block; }
+			.table-card { border: 0; box-shadow: none; }
+			.table-titlebar { padding: 0 0 10px; }
+			.table-scroll { overflow: visible; }
+			table { min-width: 0; }
+			thead th { position: static; }
+			tbody td { height: 42px; }
+			.class-cell { min-height: 34px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+			.class-cell.lab { min-height: 46px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+		}
+	</style>
+</head>
+<body>
+	<div class="app">
+		<header class="topbar">
+			<div class="brand"><span class="brand-icon" aria-hidden="true">◷</span><span>Smart Campus Planner</span></div>
+			<div class="top-note">A better-organized week starts here.</div>
+		</header>
+		<main>
+			<section class="intro" aria-labelledby="page-title">
+				<div>
+					<div class="eyebrow">Plan your semester with confidence</div>
+					<h1 id="page-title">Smart College Timetable Generator</h1>
+					<p>Generate, manage, and print your weekly college timetable easily.</p>
+				</div>
+				<div class="privacy">● &nbsp;Saved privately in your browser</div>
+			</section>
+			<div class="workspace">
+				<section class="panel-column" aria-labelledby="setup-title">
+					<div class="section-heading"><h2 id="setup-title">Timetable details</h2><span class="section-step">01 / Set up</span></div>
+					<div id="error-box" class="error-box" role="alert"></div>
+					<form class="panel" id="setup-form" novalidate>
+						<div class="form-content">
+							<section class="form-section">
+								<h3><span class="section-number">1</span>College and class</h3>
+								<div class="field-grid">
+									<div class="field full"><label for="college">College name</label><input id="college" maxlength="100" placeholder="e.g. Northstar Engineering College"></div>
+									<div class="field full"><label for="department">Department and branch</label><input id="department" maxlength="100" placeholder="e.g. CSE · Artificial Intelligence"></div>
+									<div class="field"><label for="className">Class</label><input id="className" maxlength="40" placeholder="e.g. II B.Tech"></div>
+									<div class="field"><label for="section">Section</label><input id="section" maxlength="30" placeholder="e.g. A"></div>
+									<div class="field full"><label for="academicYear">Academic year / semester</label><input id="academicYear" maxlength="50" placeholder="e.g. 2026–27 · Semester 1"></div>
+								</div>
+							</section>
+							<section class="form-section">
+								<h3><span class="section-number">2</span>Subjects and teachers</h3>
+								<div class="subject-list" id="subject-list"></div>
+								<button class="add-subject" type="button" id="add-subject">＋ Add subject</button>
+								<p class="helper">Theory sessions use regular periods. Each lab is scheduled as one continuous 120-minute block.</p>
+							</section>
+							<section class="form-section">
+								<h3><span class="section-number">3</span>Week and period times</h3>
+								<div class="field-grid">
+									<div class="field full">
+										<label>Working days</label>
+										<div class="days" id="working-days" aria-label="Select working days">
+											<label class="day-choice"><input type="checkbox" value="Monday" checked><span>Mon</span></label>
+											<label class="day-choice"><input type="checkbox" value="Tuesday" checked><span>Tue</span></label>
+											<label class="day-choice"><input type="checkbox" value="Wednesday" checked><span>Wed</span></label>
+											<label class="day-choice"><input type="checkbox" value="Thursday" checked><span>Thu</span></label>
+											<label class="day-choice"><input type="checkbox" value="Friday" checked><span>Fri</span></label>
+											<label class="day-choice"><input type="checkbox" value="Saturday" checked><span>Sat</span></label>
+										</div>
+									</div>
+									<div class="field"><label for="periods">Periods per day</label><input id="periods" type="number" min="1" max="12" step="1" value="6"></div>
+									<div class="field"><label for="startTime">College starting time</label><input id="startTime" type="time" value="09:00"></div>
+									<div class="field"><label for="periodDuration">Theory period (minutes)</label><input id="periodDuration" type="number" min="25" max="120" step="5" value="50"></div>
+									<div class="field"><label for="lunchStart">Lunch starts at</label><input id="lunchStart" type="time" value="13:00"></div>
+									<div class="field"><label for="lunchDuration">Lunch duration (minutes)</label><input id="lunchDuration" type="number" min="20" max="120" step="5" value="40"></div>
+									<div class="field"><label for="shortBreakDuration">Short break (minutes)</label><input id="shortBreakDuration" type="number" min="0" max="60" step="5" value="10"></div>
+									<div class="field"><label for="shortBreakAfter">Place short break</label><select id="shortBreakAfter"></select></div>
+								</div>
+								<p class="helper">Lunch is placed at your chosen clock time. If it falls during a period, that period starts after lunch so no class is split.</p>
+							</section>
+						</div>
+						<div class="actions">
+							<button class="button button-primary" type="submit">Generate Timetable</button>
+							<button class="button button-secondary" id="sample-button" type="button">Load Sample</button>
+							<button class="button button-secondary" id="clear-button" type="button">Clear All</button>
+							<button class="button button-save" id="save-button" type="button">Save</button>
+							<button class="button button-csv" id="csv-button" type="button">Download CSV</button>
+							<button class="button button-secondary" id="print-button" type="button">Print / PDF</button>
+						</div>
+					</form>
+				</section>
+				<section class="timetable-column" aria-labelledby="table-heading">
+					<div class="section-heading timetable-heading"><h2 id="table-heading">Weekly timetable</h2><span class="status-label"><span class="status-dot"></span>MONDAY – SATURDAY</span></div>
+					<div class="table-card">
+						<div class="empty-state" id="empty-state">
+							<div class="empty-icon" aria-hidden="true">▦</div>
+							<h3>Your weekly plan appears here</h3>
+							<p>Add your class details and subjects, then generate your timetable. Labs are scheduled as uninterrupted two-hour blocks.</p>
+						</div>
+						<div id="timetable-content" hidden>
+							<div class="table-titlebar">
+								<div><h3 id="display-college">College name</h3><p id="display-class">Department · Class · Section</p></div>
+								<div class="year-badge" id="display-year">ACADEMIC YEAR</div>
+							</div>
+							<div class="table-scroll">
+								<table aria-label="Generated Monday to Saturday college timetable">
+									<thead><tr id="table-head"></tr></thead>
+									<tbody id="table-body"></tbody>
+								</table>
+							</div>
+							<div class="legend" aria-label="Timetable legend">
+								<span><i class="theory-key"></i>Theory class</span>
+								<span><i class="lab-key"></i>2-hour lab</span>
+								<span><i class="break-key"></i>Break</span>
+							</div>
+							<div class="table-foot">Select a theory or lab cell to edit it. Valid changes save automatically.</div>
+						</div>
+					</div>
+				</section>
+			</div>
+		</main>
+	</div>
+	<dialog id="edit-dialog" aria-labelledby="edit-heading">
+		<form class="dialog-content" id="edit-form">
+			<h2 id="edit-heading">Edit timetable session</h2>
+			<p id="edit-hint" class="dialog-hint"></p>
+			<div class="dialog-fields">
+				<div class="dialog-field wide"><label for="edit-subject">Subject</label><select id="edit-subject"></select></div>
+				<div class="dialog-field wide"><label for="edit-teacher">Teacher</label><input id="edit-teacher" maxlength="80" required></div>
+				<div class="dialog-field" id="edit-day-wrap"><label for="edit-day">Lab day</label><select id="edit-day"></select></div>
+				<div class="dialog-field" id="edit-time-wrap"><label for="edit-time">Lab start time</label><input id="edit-time" type="time" step="300"></div>
+			</div>
+			<div id="edit-error" class="error-box" role="alert" style="margin-top:12px"></div>
+			<div class="dialog-actions"><button class="button button-secondary" id="cancel-edit" type="button">Cancel</button><button class="button button-primary" type="submit">Save change</button></div>
+		</form>
+	</dialog>
+	<div class="toast" id="toast" role="status" aria-live="polite"></div>
+	<script>
+		(function () {
+			'use strict';
+
+			const STORAGE_KEY = 'smart-college-timetable-v1';
+			const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+			const form = document.getElementById('setup-form');
+			const subjectList = document.getElementById('subject-list');
+			const errorBox = document.getElementById('error-box');
+			const dialog = document.getElementById('edit-dialog');
+			const editForm = document.getElementById('edit-form');
+			const toast = document.getElementById('toast');
+			let timetable = null;
+			let editTarget = null;
+			let toastTimer = 0;
+
+			function showToast(message) {
+				toast.textContent = message;
+				toast.classList.add('show');
+				window.clearTimeout(toastTimer);
+				toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 2600);
+			}
+
+			function showError(message, target) {
+				const box = target || errorBox;
+				box.textContent = message;
+				box.classList.add('show');
+				if (target) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}
+
+			function clearError(target) {
+				const box = target || errorBox;
+				box.textContent = '';
+				box.classList.remove('show');
+			}
+
+			function setInputValue(id, value) {
+				document.getElementById(id).value = value;
+			}
+
+			function addSubjectCard(subject) {
+				const value = subject || {};
+				const card = document.createElement('div');
+				card.className = 'subject-card';
+				const cardHead = document.createElement('div');
+				cardHead.className = 'subject-card-head';
+				const title = document.createElement('label');
+				title.textContent = 'SUBJECT';
+				const remove = document.createElement('button');
+				remove.type = 'button';
+				remove.className = 'remove-subject';
+				remove.setAttribute('aria-label', 'Remove subject');
+				remove.title = 'Remove subject';
+				remove.textContent = '×';
+				remove.addEventListener('click', function () {
+					if (subjectList.children.length === 1) {
+						card.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+						card.querySelector('select.subject-type').value = 'Theory';
+						card.querySelector('.weekly-sessions').value = '3';
+						card.querySelector('.preferred-day').value = '';
+					} else {
+						card.remove();
+						updateSubjectLabels();
+					}
+				});
+				cardHead.append(title, remove);
+
+				const fields = document.createElement('div');
+				fields.className = 'subject-fields';
+				function makeInput(labelText, className, placeholder, maxLength, required) {
+					const field = document.createElement('div');
+					field.className = 'field';
+					const label = document.createElement('label');
+					const input = document.createElement('input');
+					input.type = 'text';
+					input.className = className;
+					input.maxLength = maxLength;
+					input.placeholder = placeholder;
+					input.required = Boolean(required);
+					label.textContent = labelText;
+					field.append(label, input);
+					return { field: field, input: input };
+				}
+				const name = makeInput('Subject name', 'subject-name', 'e.g. Data Structures', 70, true);
+				name.input.value = value.name || '';
+				const code = makeInput('Subject code (optional)', 'subject-code', 'e.g. CS201', 24, false);
+				code.input.value = value.code || '';
+				const teacher = makeInput('Teacher name', 'subject-teacher', 'e.g. Dr. Rao', 80, true);
+				teacher.input.value = value.teacher || '';
+
+				const typeField = document.createElement('div');
+				typeField.className = 'field';
+				const typeLabel = document.createElement('label');
+				typeLabel.textContent = 'Subject type';
+				const type = document.createElement('select');
+				type.className = 'subject-type';
+				['Theory', 'Lab'].forEach(function (optionText) {
+					const option = document.createElement('option');
+					option.value = optionText;
+					option.textContent = optionText;
+					type.append(option);
+				});
+				type.value = value.type || 'Theory';
+				typeField.append(typeLabel, type);
+
+				const sessionsField = document.createElement('div');
+				sessionsField.className = 'field';
+				const sessionsLabel = document.createElement('label');
+				sessionsLabel.className = 'sessions-label';
+				const sessions = document.createElement('input');
+				sessions.type = 'number';
+				sessions.min = '1';
+				sessions.max = '30';
+				sessions.step = '1';
+				sessions.className = 'weekly-sessions';
+				sessions.value = value.sessions || 3;
+				sessionsField.append(sessionsLabel, sessions);
+
+				const dayField = document.createElement('div');
+				dayField.className = 'field field-wide preferred-field';
+				const dayLabel = document.createElement('label');
+				dayLabel.textContent = 'Preferred lab day';
+				const preferredDay = document.createElement('select');
+				preferredDay.className = 'preferred-day';
+				const anyDay = document.createElement('option');
+				anyDay.value = '';
+				anyDay.textContent = 'Any working day';
+				preferredDay.append(anyDay);
+				DAYS.forEach(function (day) {
+					const option = document.createElement('option');
+					option.value = day;
+					option.textContent = day;
+					preferredDay.append(option);
+				});
+				preferredDay.value = value.preferredDay || '';
+				dayField.append(dayLabel, preferredDay);
+
+				function syncType() {
+					const isLab = type.value === 'Lab';
+					sessionsLabel.textContent = isLab ? 'Lab sessions per week' : 'Theory sessions per week';
+					dayField.hidden = !isLab;
+				}
+				type.addEventListener('change', syncType);
+				syncType();
+				fields.append(name.field, code.field, teacher.field, typeField, sessionsField, dayField);
+				card.append(cardHead, fields);
+				subjectList.append(card);
+				updateSubjectLabels();
+			}
+
+			function updateSubjectLabels() {
+				Array.from(subjectList.querySelectorAll('.subject-card-head label')).forEach(function (label, index) {
+					label.textContent = 'SUBJECT ' + (index + 1);
+				});
+			}
+
+			function updateBreakChoices(periodCount, selectedValue) {
+				const select = document.getElementById('shortBreakAfter');
+				const oldValue = selectedValue !== undefined ? String(selectedValue) : select.value;
+				select.replaceChildren();
+				const none = document.createElement('option');
+				none.value = '';
+				none.textContent = 'No short break';
+				select.append(none);
+				for (let period = 1; period < periodCount; period += 1) {
+					const option = document.createElement('option');
+					option.value = String(period);
+					option.textContent = 'After period ' + period;
+					select.append(option);
+				}
+				select.value = oldValue;
+				if (select.value !== oldValue) select.value = '';
+			}
+
+			function readSubjects() {
+				return Array.from(subjectList.querySelectorAll('.subject-card')).map(function (card, index) {
+					return {
+						id: 'subject-' + (index + 1),
+						name: card.querySelector('.subject-name').value.trim(),
+						code: card.querySelector('.subject-code').value.trim(),
+						teacher: card.querySelector('.subject-teacher').value.trim(),
+						type: card.querySelector('.subject-type').value,
+						sessions: Number(card.querySelector('.weekly-sessions').value),
+						preferredDay: card.querySelector('.preferred-day').value
+					};
+				});
+			}
+
+			function readConfig() {
+				const subjects = readSubjects();
+				const workingDays = Array.from(document.querySelectorAll('#working-days input:checked')).map(function (input) {
+					return input.value;
+				});
+				const periods = Number(document.getElementById('periods').value);
+				const periodDuration = Number(document.getElementById('periodDuration').value);
+				const lunchDuration = Number(document.getElementById('lunchDuration').value);
+				const shortBreakDuration = Number(document.getElementById('shortBreakDuration').value);
+				const college = document.getElementById('college').value.trim();
+				const department = document.getElementById('department').value.trim();
+				const className = document.getElementById('className').value.trim();
+				const section = document.getElementById('section').value.trim();
+				const academicYear = document.getElementById('academicYear').value.trim();
+				const startTime = document.getElementById('startTime').value;
+				const lunchStart = document.getElementById('lunchStart').value;
+				const breakAfter = document.getElementById('shortBreakAfter').value ? Number(document.getElementById('shortBreakAfter').value) : null;
+
+				if (!college) return { error: 'Please enter the college name.' };
+				if (!department) return { error: 'Please enter the department and branch.' };
+				if (!className || !section) return { error: 'Please enter both the class and section.' };
+				if (!academicYear) return { error: 'Please enter the academic year or semester.' };
+				if (!subjects.length || subjects.every(function (subject) { return !subject.name; })) return { error: 'Add at least one subject before generating the timetable.' };
+				if (subjects.some(function (subject) { return !subject.name || !subject.teacher; })) return { error: 'Every subject needs a name and teacher. Please complete or remove blank subject rows.' };
+				if (subjects.some(function (subject) { return subject.type !== 'Theory' && subject.type !== 'Lab'; })) return { error: 'Choose Theory or Lab for every subject.' };
+				if (subjects.some(function (subject) { return !Number.isInteger(subject.sessions) || subject.sessions < 1 || subject.sessions > 30; })) return { error: 'Each subject needs a whole-number weekly session count from 1 to 30.' };
+				const names = subjects.map(function (subject) { return subject.name.toLocaleLowerCase(); });
+				if (new Set(names).size !== names.length) return { error: 'Subject names must be unique. Please remove or rename duplicate subjects.' };
+				const codes = subjects.filter(function (subject) { return subject.code; }).map(function (subject) { return subject.code.toLocaleLowerCase(); });
+				if (new Set(codes).size !== codes.length) return { error: 'Each optional subject code must be unique.' };
+				if (!Number.isInteger(periods) || periods < 1 || periods > 12) return { error: 'Periods per day must be a whole number from 1 to 12.' };
+				if (!Number.isInteger(periodDuration) || periodDuration < 25 || periodDuration > 120) return { error: 'Theory period duration must be between 25 and 120 minutes.' };
+				if (!Number.isInteger(lunchDuration) || lunchDuration < 20 || lunchDuration > 120) return { error: 'Lunch duration must be between 20 and 120 minutes.' };
+				if (!Number.isInteger(shortBreakDuration) || shortBreakDuration < 0 || shortBreakDuration > 60 || shortBreakDuration % 5 !== 0) return { error: 'Short break duration must be a multiple of 5 minutes from 0 to 60.' };
+				if (breakAfter !== null && (breakAfter < 1 || breakAfter >= periods)) return { error: 'Place the short break after a period that has another period after it.' };
+				if (breakAfter !== null && shortBreakDuration < 5) return { error: 'Choose a short break duration of at least 5 minutes, or set the placement to No short break.' };
+				if (!workingDays.length) return { error: 'Select at least one working day.' };
+				if (!startTime || !lunchStart) return { error: 'Choose both the college starting time and lunch start time.' };
+				const start = parseTime(startTime);
+				const lunch = parseTime(lunchStart);
+				if (start === null || lunch === null) return { error: 'Please choose valid college and lunch times.' };
+				if (lunch < start) return { error: 'Lunch must start after the college starting time.' };
+				if (subjects.some(function (subject) { return subject.type === 'Lab' && subject.preferredDay && !workingDays.includes(subject.preferredDay); })) {
+					return { error: 'A preferred lab day is not selected as a working day. Change the preference or select that working day.' };
+				}
+				return {
+					college: college,
+					department: department,
+					className: className,
+					section: section,
+					academicYear: academicYear,
+					subjects: subjects,
+					periods: periods,
+					workingDays: workingDays,
+					startTime: startTime,
+					periodDuration: periodDuration,
+					lunchStart: lunchStart,
+					lunchDuration: lunchDuration,
+					shortBreakDuration: shortBreakDuration,
+					breakAfter: breakAfter
+				};
+			}
+
+			function parseTime(value) {
+				if (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value)) return null;
+				const parts = value.split(':').map(Number);
+				if (parts[0] > 23 || parts[1] > 59) return null;
+				return parts[0] * 60 + parts[1];
+			}
+
+			function formatTime(totalMinutes) {
+				const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+				const hour = Math.floor(normalized / 60);
+				const minute = normalized % 60;
+				const suffix = hour >= 12 ? 'PM' : 'AM';
+				return (hour % 12 || 12) + ':' + String(minute).padStart(2, '0') + ' ' + suffix;
+			}
+
+			function toTimeInput(totalMinutes) {
+				const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+				return String(Math.floor(normalized / 60)).padStart(2, '0') + ':' +
+					String(normalized % 60).padStart(2, '0');
+			}
+
+			function overlaps(startA, endA, startB, endB) {
+				return startA < endB && startB < endA;
+			}
+
+			function makeDayTimeline(config) {
+				const cursorStart = parseTime(config.startTime);
+				const lunchStart = parseTime(config.lunchStart);
+				const lunchEnd = lunchStart + config.lunchDuration;
+				let cursor = cursorStart;
+				let lunchPlaced = false;
+				const periods = [];
+				const breaks = [];
+
+				function addLunch() {
+					if (lunchPlaced) return;
+					breaks.push({ id: 'lunch', kind: 'break', label: 'Lunch break', start: lunchStart, end: lunchEnd });
+					lunchPlaced = true;
+				}
+
+				for (let index = 0; index < config.periods; index += 1) {
+					if (!lunchPlaced && lunchStart <= cursor) {
+						addLunch();
+						cursor = Math.max(cursor, lunchEnd);
+					} else if (!lunchPlaced && lunchStart < cursor + config.periodDuration) {
+						addLunch();
+						cursor = lunchEnd;
+					}
+
+					const periodStart = cursor;
+					const periodEnd = periodStart + config.periodDuration;
+					periods.push({ id: 'period-' + index, index: index, start: periodStart, end: periodEnd, entry: null });
+					cursor = periodEnd;
+
+					if (config.breakAfter === index + 1 && index < config.periods - 1) {
+						const shortEnd = cursor + config.shortBreakDuration;
+						if (!lunchPlaced && overlaps(cursor, shortEnd, lunchStart, lunchEnd)) {
+							breaks.push({ id: 'short-break-' + index, kind: 'break', label: 'Short break + lunch', start: Math.min(cursor, lunchStart), end: Math.max(shortEnd, lunchEnd) });
+							lunchPlaced = true;
+							cursor = Math.max(shortEnd, lunchEnd);
+						} else {
+							breaks.push({ id: 'short-break-' + index, kind: 'break', label: 'Short break', start: cursor, end: shortEnd });
+							cursor = shortEnd;
+						}
+					}
+				}
+
+				const lastPeriod = periods[periods.length - 1];
+				if (!lunchPlaced && lunchStart < lastPeriod.end) addLunch();
+				return { periods: periods, breaks: breaks, start: cursorStart, end: lastPeriod.end };
+			}
+
+			function candidateLabStarts(timeline) {
+				const starts = [];
+				timeline.periods.forEach(function (period) { starts.push(period.start); });
+				for (let minute = timeline.start; minute + 120 <= timeline.end; minute += 5) starts.push(minute);
+				return Array.from(new Set(starts)).filter(function (minute) {
+					return minute + 120 <= timeline.end;
+				}).sort(function (a, b) {
+					return a - b;
+				});
+			}
+
+			function canPlaceLab(day, start, duration, timelines, labs) {
+				const end = start + duration;
+				const timeline = timelines[day];
+				if (!timeline || start < timeline.start || end > timeline.end) return false;
+				if (timeline.breaks.some(function (item) { return overlaps(start, end, item.start, item.end); })) return false;
+				if (labs.some(function (lab) { return lab.day === day && overlaps(start, end, lab.start, lab.end); })) return false;
+				return true;
+			}
+
+			function createSchedule(config) {
+				const timelines = {};
+				config.workingDays.forEach(function (day) { timelines[day] = makeDayTimeline(config); });
+				const lunchStart = parseTime(config.lunchStart);
+				if (config.workingDays.some(function (day) { return lunchStart >= timelines[day].end; })) {
+					return { error: 'Lunch must start before the end of the college day. Reduce periods or choose an earlier lunch time.' };
+				}
+				if (config.workingDays.some(function (day) { return timelines[day].end > 22 * 60; })) {
+					return { error: 'The configured periods extend past 10:00 PM. Reduce the periods or durations to keep the schedule within a college day.' };
+				}
+
+				const labs = [];
+				const labSubjects = config.subjects.filter(function (subject) { return subject.type === 'Lab'; });
+				const maximumFrequency = labSubjects.reduce(function (max, subject) { return Math.max(max, subject.sessions); }, 0);
+				for (let sessionIndex = 0; sessionIndex < maximumFrequency; sessionIndex += 1) {
+					for (const subject of labSubjects) {
+						if (subject.sessions <= sessionIndex) continue;
+						const dayOrder = config.workingDays.slice().sort(function (dayA, dayB) {
+							const loadA = labs.filter(function (lab) { return lab.day === dayA; }).length;
+							const loadB = labs.filter(function (lab) { return lab.day === dayB; }).length;
+							if (loadA !== loadB) return loadA - loadB;
+							const preferred = subject.preferredDay;
+							if (preferred && dayA === preferred) return -1;
+							if (preferred && dayB === preferred) return 1;
+							return config.workingDays.indexOf(dayA) - config.workingDays.indexOf(dayB);
+						});
+						let placement = null;
+						for (const day of dayOrder) {
+							const starts = candidateLabStarts(timelines[day]);
+							for (const start of starts) {
+								if (canPlaceLab(day, start, 120, timelines, labs)) {
+									placement = { day: day, start: start };
+									break;
+								}
+							}
+							if (placement) break;
+						}
+						if (!placement) {
+							return { error: 'There is not enough uninterrupted 120-minute time for every requested lab session. Try adding working days or periods, moving lunch/short breaks, or reducing lab frequency.' };
+						}
+						labs.push({
+							id: 'lab-' + subject.id + '-' + (sessionIndex + 1),
+							subjectId: subject.id,
+							day: placement.day,
+							start: placement.start,
+							end: placement.start + 120,
+							teacher: subject.teacher
+						});
+					}
+				}
+
+				const openSlots = [];
+				config.workingDays.forEach(function (day) {
+					timelines[day].periods.forEach(function (period) {
+						const blocked = labs.some(function (lab) { return lab.day === day && overlaps(period.start, period.end, lab.start, lab.end); });
+						if (!blocked) openSlots.push({ day: day, periodIndex: period.index, start: period.start, end: period.end });
+					});
+				});
+				const theorySubjects = config.subjects.filter(function (subject) { return subject.type === 'Theory'; });
+				const requestedTheory = theorySubjects.reduce(function (sum, subject) { return sum + subject.sessions; }, 0);
+				if (requestedTheory > openSlots.length) {
+					return { error: 'Your subjects request ' + requestedTheory + ' theory sessions, but only ' + openSlots.length + ' period slots remain after breaks and labs. Add periods or working days, or reduce weekly sessions.' };
+				}
+
+				const dayLoads = {};
+				const subjectDayLoads = {};
+				const periodLoads = {};
+				config.workingDays.forEach(function (day) {
+					dayLoads[day] = 0;
+					subjectDayLoads[day] = {};
+				});
+				const assigned = new Set();
+				let turn = 0;
+				for (const subject of theorySubjects) {
+					for (let session = 0; session < subject.sessions; session += 1) {
+						const candidates = openSlots.filter(function (slot) { return !assigned.has(slot.day + ':' + slot.periodIndex); });
+						candidates.sort(function (a, b) {
+							const subjectLoadA = subjectDayLoads[a.day][subject.id] || 0;
+							const subjectLoadB = subjectDayLoads[b.day][subject.id] || 0;
+							const periodLoadA = periodLoads[a.periodIndex] || 0;
+							const periodLoadB = periodLoads[b.periodIndex] || 0;
+							return subjectLoadA - subjectLoadB || dayLoads[a.day] - dayLoads[b.day] ||
+								periodLoadA - periodLoadB ||
+								((config.workingDays.indexOf(a.day) - turn + config.workingDays.length) % config.workingDays.length) -
+								((config.workingDays.indexOf(b.day) - turn + config.workingDays.length) % config.workingDays.length) ||
+								a.periodIndex - b.periodIndex;
+						});
+						const slot = candidates[0];
+						if (!slot) return { error: 'There are not enough free periods to schedule all requested theory sessions.' };
+						assigned.add(slot.day + ':' + slot.periodIndex);
+						subjectDayLoads[slot.day][subject.id] = (subjectDayLoads[slot.day][subject.id] || 0) + 1;
+						dayLoads[slot.day] += 1;
+						periodLoads[slot.periodIndex] = (periodLoads[slot.periodIndex] || 0) + 1;
+						timelines[slot.day].periods[slot.periodIndex].entry = {
+							kind: 'theory',
+							subjectId: subject.id,
+							teacher: subject.teacher
+						};
+						turn = (turn + 1) % config.workingDays.length;
+					}
+				}
+
+				const result = Object.assign({}, config, { timelines: timelines, labs: labs });
+				const conflict = findTeacherConflict(result);
+				if (conflict) return { error: 'Teacher conflict: ' + conflict.teacher + ' is assigned to overlapping sessions on ' + conflict.day + '. Please review the schedule.' };
+				return { schedule: result };
+			}
+
+			function getSubject(schedule, subjectId) {
+				return schedule.subjects.find(function (subject) { return subject.id === subjectId; });
+			}
+
+			function lessonEventsForDay(schedule, day) {
+				const events = [];
+				const timeline = schedule.timelines[day];
+				timeline.periods.forEach(function (period) {
+					if (period.entry && period.entry.kind === 'theory') {
+						events.push({ id: period.id, kind: 'theory', day: day, start: period.start, end: period.end, teacher: period.entry.teacher, subjectId: period.entry.subjectId });
+					}
+				});
+				schedule.labs.forEach(function (lab) {
+					if (lab.day === day) events.push({ id: lab.id, kind: 'lab', day: day, start: lab.start, end: lab.end, teacher: lab.teacher, subjectId: lab.subjectId });
+				});
+				return events;
+			}
+
+			function findTeacherConflict(schedule, candidate) {
+				const events = [];
+				schedule.workingDays.forEach(function (day) {
+					lessonEventsForDay(schedule, day).forEach(function (event) {
+						if (!candidate || event.id !== candidate.excludeId) events.push(event);
+					});
+				});
+				if (candidate) events.push(candidate);
+				for (let first = 0; first < events.length; first += 1) {
+					for (let second = first + 1; second < events.length; second += 1) {
+						const a = events[first];
+						const b = events[second];
+						if (a.day === b.day && a.teacher.trim().toLocaleLowerCase() === b.teacher.trim().toLocaleLowerCase() &&
+							overlaps(a.start, a.end, b.start, b.end)) {
+							return { teacher: a.teacher, day: a.day };
+						}
+					}
+				}
+				return null;
+			}
+
+			function eventsForDay(schedule, day) {
+				const timeline = schedule.timelines[day];
+				const events = [];
+				timeline.periods.forEach(function (period) {
+					const entry = period.entry || { kind: 'free', subjectId: '', teacher: '' };
+					events.push({
+						id: period.id,
+						kind: entry.kind,
+						day: day,
+						start: period.start,
+						end: period.end,
+						subjectId: entry.subjectId || '',
+						teacher: entry.teacher || '',
+						periodIndex: period.index
+					});
+				});
+				timeline.breaks.forEach(function (breakEvent) {
+					events.push(Object.assign({ day: day }, breakEvent));
+				});
+				schedule.labs.forEach(function (lab) {
+					if (lab.day === day) events.push(Object.assign({ kind: 'lab' }, lab));
+				});
+				return events;
+			}
+
+			function appendCellText(button, className, text) {
+				const span = document.createElement('span');
+				span.className = className;
+				span.textContent = text;
+				button.append(span);
+			}
+
+			function eventLabel(event, schedule) {
+				const subject = event.subjectId ? getSubject(schedule, event.subjectId) : null;
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = 'class-cell ' + event.kind;
+				if (event.kind === 'lab' || event.kind === 'theory' || event.kind === 'free') {
+					button.setAttribute('aria-label', event.day + ', ' + (event.kind === 'lab' ? 'two-hour lab' : event.kind === 'theory' ? 'theory class' : 'free period') +
+						': ' + (subject ? subject.name : 'Free period') + ', ' + formatTime(event.start) + ' to ' + formatTime(event.end) + '. Select to edit.');
+					appendCellText(button, 'cell-name', subject ? subject.name + (subject.code ? ' · ' + subject.code : '') : 'Free period');
+					if (event.teacher) appendCellText(button, 'cell-meta', event.teacher);
+					if (event.kind === 'lab') {
+						appendCellText(button, 'cell-time', formatTime(event.start) + ' – ' + formatTime(event.end) + ' · 2 hours');
+					}
+					button.addEventListener('click', function () { openEditor(event); });
+				} else {
+					button.classList.add('break-cell');
+					appendCellText(button, 'cell-name', event.label);
+					appendCellText(button, 'cell-meta', formatTime(event.start) + ' – ' + formatTime(event.end));
+					button.disabled = true;
+				}
+				return button;
+			}
+
+			function eventForInterval(events, start, end) {
+				const priority = { break: 0, lab: 1, theory: 2, free: 3 };
+				return events.filter(function (event) {
+					return event.start <= start && event.end >= end;
+				}).sort(function (a, b) { return priority[a.kind] - priority[b.kind]; })[0] || null;
+			}
+
+			function renderTimetable(schedule) {
+				document.getElementById('empty-state').hidden = true;
+				document.getElementById('timetable-content').hidden = false;
+				document.getElementById('display-college').textContent = schedule.college;
+				document.getElementById('display-class').textContent =
+					schedule.department + ' · ' + schedule.className + ' ' + schedule.section;
+				document.getElementById('display-year').textContent = schedule.academicYear.toLocaleUpperCase();
+
+				const head = document.getElementById('table-head');
+				head.replaceChildren();
+				const timeHead = document.createElement('th');
+				timeHead.scope = 'col';
+				timeHead.textContent = 'Time';
+				head.append(timeHead);
+				DAYS.forEach(function (day) {
+					const th = document.createElement('th');
+					th.scope = 'col';
+					th.textContent = day;
+					head.append(th);
+				});
+
+				const allEvents = {};
+				const boundaries = new Set();
+				schedule.workingDays.forEach(function (day) {
+					allEvents[day] = eventsForDay(schedule, day);
+					allEvents[day].forEach(function (event) {
+						boundaries.add(event.start);
+						boundaries.add(event.end);
+					});
+				});
+				const times = Array.from(boundaries).sort(function (a, b) { return a - b; });
+				const intervals = [];
+				for (let index = 0; index < times.length - 1; index += 1) {
+					if (times[index] < times[index + 1]) intervals.push({ start: times[index], end: times[index + 1] });
+				}
+				const body = document.getElementById('table-body');
+				body.replaceChildren();
+				const activeDays = new Set(schedule.workingDays);
+				const previousEvent = {};
+				const inactiveRendered = {};
+
+				intervals.forEach(function (interval, rowIndex) {
+					const row = document.createElement('tr');
+					const timeHeading = document.createElement('th');
+					timeHeading.scope = 'row';
+					timeHeading.append(document.createTextNode(formatTime(interval.start)));
+					const timeDetail = document.createElement('small');
+					timeDetail.textContent = 'to ' + formatTime(interval.end);
+					timeHeading.append(timeDetail);
+					row.append(timeHeading);
+
+					DAYS.forEach(function (day) {
+						if (!activeDays.has(day)) {
+							previousEvent[day] = null;
+							if (!inactiveRendered[day]) {
+								const cell = document.createElement('td');
+								cell.rowSpan = intervals.length;
+								const label = document.createElement('div');
+								label.className = 'no-classes';
+								label.textContent = 'No classes';
+								cell.append(label);
+								row.append(cell);
+								inactiveRendered[day] = true;
+							}
+							return;
+						}
+						const event = eventForInterval(allEvents[day], interval.start, interval.end);
+						if (event && previousEvent[day] === event.id) {
+							return;
+						}
+						const cell = document.createElement('td');
+						if (event) {
+							let span = 1;
+							for (let next = rowIndex + 1; next < intervals.length; next += 1) {
+								if (intervals[next].start >= event.end) break;
+								const nextEvent = eventForInterval(allEvents[day], intervals[next].start, intervals[next].end);
+								if (!nextEvent || nextEvent.id !== event.id) break;
+								span += 1;
+							}
+							cell.rowSpan = span;
+							cell.append(eventLabel(event, schedule));
+						} else {
+							cell.append(createFreeCell(day, interval));
+						}
+						row.append(cell);
+						previousEvent[day] = event ? event.id : null;
+					});
+					body.append(row);
+				});
+			}
+
+			function createFreeCell(day, interval) {
+				const cell = document.createElement('div');
+				cell.className = 'no-classes';
+				cell.textContent = '—';
+				return cell;
+			}
+
+			function saveCurrent(showMessage) {
+				if (!timetable) {
+					showError('Generate a timetable before saving.');
+					return false;
+				}
+				try {
+					window.localStorage.setItem(STORAGE_KEY, JSON.stringify(timetable));
+				} catch (error) {
+					showError('The timetable could not be saved. Browser storage may be disabled or full.');
+					return false;
+				}
+				if (showMessage) showToast('Timetable saved in this browser.');
+				return true;
+			}
+
+			function populateForm(data) {
+				setInputValue('college', data.college || '');
+				setInputValue('department', data.department || '');
+				setInputValue('className', data.className || '');
+				setInputValue('section', data.section || '');
+				setInputValue('academicYear', data.academicYear || '');
+				setInputValue('periods', data.periods || 6);
+				setInputValue('startTime', data.startTime || '09:00');
+				setInputValue('periodDuration', data.periodDuration || 50);
+				setInputValue('lunchStart', data.lunchStart || '13:00');
+				setInputValue('lunchDuration', data.lunchDuration || 40);
+				setInputValue('shortBreakDuration', data.shortBreakDuration === undefined ? 10 : data.shortBreakDuration);
+				updateBreakChoices(Number(data.periods) || 6, data.breakAfter === null ? '' : data.breakAfter);
+				subjectList.replaceChildren();
+				(data.subjects && data.subjects.length ? data.subjects : [{}]).forEach(addSubjectCard);
+				document.querySelectorAll('#working-days input').forEach(function (input) {
+					input.checked = (data.workingDays || DAYS).includes(input.value);
+				});
+			}
+
+			function validateSavedSchedule(saved) {
+				if (!saved || !Array.isArray(saved.subjects) || !Array.isArray(saved.workingDays) ||
+					!saved.timelines || !Array.isArray(saved.labs) || !Number.isInteger(saved.periods)) return false;
+				if (!saved.workingDays.every(function (day) { return DAYS.includes(day) && saved.timelines[day] && Array.isArray(saved.timelines[day].periods); })) return false;
+				if (!saved.subjects.every(function (subject) { return subject.id && subject.name && subject.teacher && (subject.type === 'Theory' || subject.type === 'Lab'); })) return false;
+				if (!saved.labs.every(function (lab) {
+					return saved.workingDays.includes(lab.day) && Number.isFinite(lab.start) && lab.end - lab.start === 120 &&
+						saved.subjects.some(function (subject) { return subject.id === lab.subjectId && subject.type === 'Lab'; });
+				})) return false;
+				return true;
+			}
+
+			function restoreSaved() {
+				let raw;
+				try {
+					raw = window.localStorage.getItem(STORAGE_KEY);
+				} catch (error) {
+					showError('Browser storage is unavailable, so saved timetable data could not be restored.');
+					return;
+				}
+				if (!raw) return;
+				let saved;
+				try {
+					saved = JSON.parse(raw);
+				} catch (error) {
+					showError('The saved timetable data is damaged. Generate a new timetable to replace it.');
+					return;
+				}
+				if (!validateSavedSchedule(saved)) {
+					showError('The saved timetable is incomplete or invalid. Generate a new timetable to replace it.');
+					return;
+				}
+				timetable = saved;
+				populateForm(saved);
+				renderTimetable(timetable);
+			}
+
+			function populateSample() {
+				const sample = {
+					college: 'Northstar College of Engineering',
+					department: 'Computer Science · Artificial Intelligence',
+					className: 'II B.Tech',
+					section: 'A',
+					academicYear: '2026–27 · Semester 1',
+					periods: 7,
+					workingDays: DAYS.slice(0, 5),
+					startTime: '09:00',
+					periodDuration: 50,
+					lunchStart: '13:00',
+					lunchDuration: 40,
+					shortBreakDuration: 10,
+					breakAfter: 2,
+					subjects: [
+						{ id: 'subject-1', name: 'Data Structures', code: 'CS201', teacher: 'Dr. Meera Rao', type: 'Theory', sessions: 4, preferredDay: '' },
+						{ id: 'subject-2', name: 'Database Systems', code: 'CS203', teacher: 'Prof. Arjun Das', type: 'Theory', sessions: 3, preferredDay: '' },
+						{ id: 'subject-3', name: 'Discrete Mathematics', code: 'MA201', teacher: 'Dr. Lin Chen', type: 'Theory', sessions: 3, preferredDay: '' },
+						{ id: 'subject-4', name: 'Communication Skills', code: 'HS205', teacher: 'Ms. Asha Nair', type: 'Theory', sessions: 2, preferredDay: '' },
+						{ id: 'subject-5', name: 'Programming Lab', code: 'CS202L', teacher: 'Mr. Vikram Shah', type: 'Lab', sessions: 1, preferredDay: 'Wednesday' }
+					]
+				};
+				populateForm(sample);
+				const result = createSchedule(sample);
+				if (result.error) {
+					showError('The sample schedule could not be generated: ' + result.error);
+					return;
+				}
+				timetable = result.schedule;
+				const saved = saveCurrent(false);
+				renderTimetable(timetable);
+				if (saved) showToast('Sample timetable generated. Select a class to edit it.');
+			}
+
+			function openEditor(event) {
+				editTarget = event;
+				clearError(document.getElementById('edit-error'));
+				const select = document.getElementById('edit-subject');
+				select.replaceChildren();
+				const freeOption = document.createElement('option');
+				freeOption.value = '';
+				freeOption.textContent = 'Free period';
+				if (event.kind === 'theory' || event.kind === 'free') select.append(freeOption);
+				timetable.subjects.filter(function (subject) {
+					return subject.type === (event.kind === 'lab' ? 'Lab' : 'Theory');
+				}).forEach(function (subject) {
+					const option = document.createElement('option');
+					option.value = subject.id;
+					option.textContent = subject.name + (subject.code ? ' · ' + subject.code : '');
+					select.append(option);
+				});
+				select.value = event.subjectId || '';
+				document.getElementById('edit-teacher').value = event.teacher || '';
+				const isLab = event.kind === 'lab';
+				document.getElementById('edit-heading').textContent = isLab ? 'Edit 2-hour lab' : 'Edit theory period';
+				document.getElementById('edit-hint').textContent = isLab
+					? 'A lab must remain a continuous 120-minute block with no break or class inside it.'
+					: event.day + ' · ' + formatTime(event.start) + ' – ' + formatTime(event.end) + '. Choose another theory subject or mark this period free.';
+				document.getElementById('edit-day-wrap').hidden = !isLab;
+				document.getElementById('edit-time-wrap').hidden = !isLab;
+				if (isLab) {
+					const daySelect = document.getElementById('edit-day');
+					daySelect.replaceChildren();
+					timetable.workingDays.forEach(function (day) {
+						const option = document.createElement('option');
+						option.value = day;
+						option.textContent = day;
+						daySelect.append(option);
+					});
+					daySelect.value = event.day;
+					document.getElementById('edit-time').value = toTimeInput(event.start);
+				}
+				dialog.showModal();
+			}
+
+			function editLab(subjectId, teacher) {
+				const day = document.getElementById('edit-day').value;
+				const start = parseTime(document.getElementById('edit-time').value);
+				if (start === null || start % 5 !== 0) return 'Choose a valid lab start time in 5-minute increments.';
+				const timeline = timetable.timelines[day];
+				if (!timeline || start < timeline.start || start + 120 > timeline.end) return 'This day does not have a full 120-minute block at that time.';
+				if (timeline.breaks.some(function (item) { return overlaps(start, start + 120, item.start, item.end); })) {
+					return 'A lab cannot overlap lunch or a short break. Choose another start time.';
+				}
+				if (timetable.labs.some(function (lab) { return lab.id !== editTarget.id && lab.day === day && overlaps(start, start + 120, lab.start, lab.end); })) {
+					return 'Another lab already uses part of this time. Choose a different day or time.';
+				}
+				const hasTheory = timeline.periods.some(function (period) {
+					return period.entry && period.entry.kind === 'theory' && overlaps(start, start + 120, period.start, period.end);
+				});
+				if (hasTheory) return 'This block overlaps a scheduled theory class. Choose a free continuous two-hour block.';
+				const candidateSubject = getSubject(timetable, subjectId);
+				const conflict = findTeacherConflict(timetable, {
+					id: editTarget.id,
+					excludeId: editTarget.id,
+					kind: 'lab',
+					day: day,
+					start: start,
+					end: start + 120,
+					teacher: teacher || candidateSubject.teacher
+				});
+				if (conflict) return 'Teacher conflict: ' + conflict.teacher + ' already has a class during this time on ' + conflict.day + '.';
+				const lab = timetable.labs.find(function (item) { return item.id === editTarget.id; });
+				lab.day = day;
+				lab.start = start;
+				lab.end = start + 120;
+				lab.subjectId = subjectId;
+				lab.teacher = teacher || candidateSubject.teacher;
+				return '';
+			}
+
+			function editTheory(subjectId, teacher) {
+				const timeline = timetable.timelines[editTarget.day];
+				const period = timeline.periods.find(function (item) { return item.id === editTarget.id; });
+				if (!period) return 'This timetable period could not be found.';
+				if (!subjectId) {
+					period.entry = null;
+					return '';
+				}
+				const subject = getSubject(timetable, subjectId);
+				if (!subject || subject.type !== 'Theory') return 'Choose a theory subject for this period.';
+				if (!teacher.trim()) return 'Please enter a teacher name for this class.';
+				const conflict = findTeacherConflict(timetable, {
+					id: period.id,
+					excludeId: period.id,
+					kind: 'theory',
+					day: editTarget.day,
+					start: period.start,
+					end: period.end,
+					teacher: teacher
+				});
+				if (conflict) return 'Teacher conflict: ' + conflict.teacher + ' already has a class during this time on ' + conflict.day + '.';
+				period.entry = { kind: 'theory', subjectId: subjectId, teacher: teacher.trim() };
+				return '';
+			}
+
+			form.addEventListener('submit', function (event) {
+				event.preventDefault();
+				clearError();
+				const config = readConfig();
+				if (config.error) {
+					showError(config.error);
+					return;
+				}
+				const result = createSchedule(config);
+				if (result.error) {
+					showError(result.error);
+					return;
+				}
+				timetable = result.schedule;
+				const saved = saveCurrent(false);
+				renderTimetable(timetable);
+				if (saved) showToast('Timetable generated and saved.');
+			});
+
+			document.getElementById('periods').addEventListener('input', function () {
+				const periods = Number(this.value);
+				if (Number.isInteger(periods) && periods >= 1 && periods <= 12) updateBreakChoices(periods);
+			});
+
+			document.getElementById('add-subject').addEventListener('click', function () {
+				addSubjectCard({});
+				subjectList.lastElementChild.querySelector('.subject-name').focus();
+			});
+
+			document.getElementById('sample-button').addEventListener('click', function () {
+				clearError();
+				populateSample();
+			});
+
+			document.getElementById('clear-button').addEventListener('click', function () {
+				if (!window.confirm('Clear all college details, subjects, timetable edits, and saved data from this browser?')) return;
+				let storageClearFailed = false;
+				try {
+					window.localStorage.removeItem(STORAGE_KEY);
+				} catch (error) {
+					storageClearFailed = true;
+					showError('Browser storage could not be cleared. The current page was cleared, but saved browser data may remain.');
+				}
+				timetable = null;
+				form.reset();
+				subjectList.replaceChildren();
+				addSubjectCard({});
+				updateBreakChoices(6, 2);
+				document.getElementById('empty-state').hidden = false;
+				document.getElementById('timetable-content').hidden = true;
+				if (!storageClearFailed) {
+					clearError();
+					showToast('Form and timetable cleared.');
+				}
+			});
+
+			document.getElementById('save-button').addEventListener('click', function () { saveCurrent(true); });
+
+			document.getElementById('print-button').addEventListener('click', function () {
+				if (!timetable) {
+					showError('Generate or load a timetable before printing.');
+					return;
+				}
+				window.print();
+			});
+
+			document.getElementById('csv-button').addEventListener('click', function () {
+				if (!timetable) {
+					showError('Generate or load a timetable before downloading a CSV.');
+					return;
+				}
+				const rows = [['Day', 'Type', 'Start time', 'End time', 'Subject', 'Subject code', 'Teacher']];
+				timetable.workingDays.forEach(function (day) {
+					eventsForDay(timetable, day).filter(function (event) {
+						return event.kind === 'theory' || event.kind === 'lab' || event.kind === 'break' || event.kind === 'free';
+					}).sort(function (a, b) { return a.start - b.start; }).forEach(function (event) {
+						const subject = event.subjectId ? getSubject(timetable, event.subjectId) : null;
+						rows.push([
+							day,
+							event.kind === 'lab' ? 'Lab (120 minutes)' : event.kind === 'theory' ? 'Theory' :
+								event.kind === 'free' ? 'Free period' : event.label,
+							formatTime(event.start),
+							formatTime(event.end),
+							subject ? subject.name : '',
+							subject ? subject.code : '',
+							event.teacher || ''
+						]);
+					});
+				});
+				const csv = '\uFEFF' + rows.map(function (row) {
+					return row.map(function (value) { return '"' + String(value).replace(/"/g, '""') + '"'; }).join(',');
+				}).join('\r\n');
+				const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement('a');
+				link.href = url;
+				link.download = 'college-timetable.csv';
+				document.body.append(link);
+				link.click();
+				link.remove();
+				window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+				showToast('CSV timetable downloaded.');
+			});
+
+			editForm.addEventListener('submit', function (event) {
+				event.preventDefault();
+				const subjectId = document.getElementById('edit-subject').value;
+				const teacher = document.getElementById('edit-teacher').value.trim();
+				if (!subjectId) {
+					if (editTarget.kind === 'lab') {
+						showError('A lab cannot be changed into a free period. Choose a lab subject.', document.getElementById('edit-error'));
+						return;
+					}
+					const error = editTheory('', '');
+					if (error) {
+						showError(error, document.getElementById('edit-error'));
+						return;
+					}
+				} else if (!teacher) {
+					showError('Please enter a teacher name.', document.getElementById('edit-error'));
+					return;
+				} else {
+					const error = editTarget.kind === 'lab' ? editLab(subjectId, teacher) : editTheory(subjectId, teacher);
+					if (error) {
+						showError(error, document.getElementById('edit-error'));
+						return;
+					}
+				}
+				const saved = saveCurrent(false);
+				renderTimetable(timetable);
+				dialog.close();
+				if (saved) showToast('Change saved automatically.');
+			});
+
+			document.getElementById('cancel-edit').addEventListener('click', function () { dialog.close(); });
+			dialog.addEventListener('close', function () { editTarget = null; });
+
+			updateBreakChoices(6, 2);
+			addSubjectCard({});
+			restoreSaved();
+		}());
+	</script>
+</body>
+</html>
